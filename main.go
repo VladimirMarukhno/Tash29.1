@@ -6,56 +6,63 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"strings"
-	"sync"
 )
 
-var wg sync.WaitGroup
-
-func square(bufCh *chan int) {
-	defer wg.Done()
-	tmp := <-*bufCh
-	fmt.Println("Ввод :", tmp)
-	tmp *= tmp
-	fmt.Println("Квадрат :", tmp)
-	*bufCh <- tmp
+func input() chan int {
+	out := make(chan int)
+	go func() {
+		for {
+			scanner := bufio.NewScanner(os.Stdin)
+			scanner.Scan()
+			inp := scanner.Text()
+			if inp == "стоп" {
+				break
+			}
+			num, err := strconv.Atoi(inp)
+			if err != nil {
+				log.Println("Введите число или слово стоп!\n", err)
+				continue
+			}
+			out <- num
+		}
+		close(out)
+	}()
+	return out
 }
 
-func multiplying(bufCh *chan int) {
-	defer wg.Done()
-	tmp := <-*bufCh
-	tmp *= 2
-	fmt.Println("Произведение :", tmp)
+func square(in chan int) chan int {
+	out := make(chan int)
+	go func() {
+		for n := range in {
+			fmt.Println("Ввод:", n)
+			out <- n * n
+		}
+		close(out)
+	}()
+	return out
+}
+
+func multiplying(in chan int) chan int {
+	out := make(chan int)
+	go func() {
+		for n := range in {
+			fmt.Println("Квадрат:", n)
+			out <- n * 2
+		}
+		close(out)
+	}()
+	return out
 }
 
 func main() {
-	bufCh := make(chan int, 1)
 
-	for {
-		reader := bufio.NewReader(os.Stdin)
-		inp, err := reader.ReadString('\n')
-		if err != nil {
-			log.Println(err)
-		}
-		inp = strings.TrimSpace(inp)
-		if inp == "стоп" {
-			break
-		}
-		num, err := strconv.Atoi(inp)
-		if err != nil {
-			log.Println(err)
-		}
+	out := input()
+	out = square(out)
+	out = multiplying(out)
 
-		bufCh <- num
-
-		wg.Add(1)
-		go square(&bufCh)
-
-		wg.Wait()
-		wg.Add(1)
-		go multiplying(&bufCh)
-
-		wg.Wait()
+	for b := range out {
+		fmt.Println("Произведение:", b)
 		fmt.Println("Введите следующие число или стоп для завершения программы")
 	}
+
 }
