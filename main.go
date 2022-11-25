@@ -6,12 +6,17 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"sync"
 )
+
+var wg sync.WaitGroup
 
 func input() chan int {
 	out := make(chan int)
+	arr := make([]int, 0)
 	go func() {
 		for {
+			fmt.Println("Введите следующие число или стоп для завершения программы")
 			scanner := bufio.NewScanner(os.Stdin)
 			scanner.Scan()
 			inp := scanner.Text()
@@ -23,7 +28,10 @@ func input() chan int {
 				log.Println("Введите число или слово стоп!\n", err)
 				continue
 			}
-			out <- num
+			arr = append(arr, num)
+		}
+		for _, val := range arr {
+			out <- val
 		}
 		close(out)
 	}()
@@ -31,6 +39,7 @@ func input() chan int {
 }
 
 func square(in chan int) chan int {
+	defer wg.Done()
 	out := make(chan int)
 	go func() {
 		for n := range in {
@@ -43,6 +52,7 @@ func square(in chan int) chan int {
 }
 
 func multiplying(in chan int) chan int {
+	defer wg.Done()
 	out := make(chan int)
 	go func() {
 		for n := range in {
@@ -55,14 +65,16 @@ func multiplying(in chan int) chan int {
 }
 
 func main() {
-
 	out := input()
+	wg.Add(1)
 	out = square(out)
+	wg.Wait()
+	wg.Add(1)
 	out = multiplying(out)
+	wg.Wait()
 
 	for b := range out {
 		fmt.Println("Произведение:", b)
-		fmt.Println("Введите следующие число или стоп для завершения программы")
 	}
 
 }
